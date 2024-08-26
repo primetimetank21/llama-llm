@@ -1,4 +1,5 @@
 """Pytests for hello()"""
+
 from typing import cast
 import hello
 import mock  # type:ignore

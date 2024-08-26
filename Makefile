@@ -30,7 +30,9 @@ ALL_iPYTHON_FILES := $$(git ls-files "*.ipynb")
 install: $(REQUIREMENTS)
 	@ chmod +x ./.github/add_github_hooks.sh && ./.github/add_github_hooks.sh
 	@ echo "Installing dependencies... [START]" && \
-	$(PIP) install --upgrade pip $(MUTE_OUTPUT) && $(PIP) install -r $(REQUIREMENTS) $(MUTE_OUTPUT) && \
+	$(PIP) install --upgrade pip      $(MUTE_OUTPUT) && \
+	$(PIP) install --upgrade wheel    $(MUTE_OUTPUT) && \
+	$(PIP) install -r $(REQUIREMENTS) $(MUTE_OUTPUT) && \
 	echo "Installing dependencies... [FINISHED]"
 
 # Create/Activate env; install dependencies

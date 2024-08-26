@@ -9,3 +9,6 @@ pytest-cov
 langchain
 langchain-ollama
 ollama
+
+# TTS Dependencies
+gTTS
