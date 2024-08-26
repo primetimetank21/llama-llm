@@ -1,0 +1,11 @@
+# Formatting, Linting, and Testing Dependencies
+mypy
+ruff
+pytest
+mock
+pytest-cov
+
+# LLM Dependencies
+langchain
+langchain-ollama
+ollama
