@@ -5,7 +5,7 @@ import tempfile
 import json
 
 # Typing Dependencies
-from typing import Final
+from typing import Final, cast
 
 # from io import BufferedRandom
 from langchain_core.runnables.base import RunnableSerializable
@@ -18,9 +18,27 @@ from langchain_core.prompts import ChatPromptTemplate
 from gtts import gTTS  # type:ignore
 import os
 
+# Input Dependencies
+import argparse
+
 # Global Variables
 QUERY_SEPARATOR: Final[str] = "\n----------------QUERY SEPARATOR----------------\n"
 USER_AI_SEPARATOR: Final[str] = "\n----------------USER AI SEPARATOR----------------\n"
+
+
+def get_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Chat with the bot!")
+    parser.add_argument(
+        "-m",
+        "--model_name",
+        type=str,
+        default="llama3",
+        help="Name of the model to use",
+    )
+    parser.add_argument(
+        "-c", "--context_filename", type=str, default="", help="Context filepath to use"
+    )
+    return parser.parse_args()
 
 
 def speak(filename: str) -> None:
@@ -32,14 +50,31 @@ def speak(filename: str) -> None:
     os.system(f"mpg123 -q {filename}")
 
 
-def get_context(filename: Path) -> str:
+def get_context(filename: str, use_context: bool = False) -> str:
     """
     Get the context from a file.
 
     `filename`: `str` -- The filename to get the context from.\n
+    `use_context`: `bool` -- Whether to use the context. Default is `False`.\n
     """
-    filename.exists()
-    context: str = ""
+    if not use_context:
+        return ""
+
+    # Check if the file exists
+    is_valid_filename: bool = all([isinstance(filename, str), len(filename) > 0])
+    if not is_valid_filename:
+        raise FileExistsError(f"File '{filename}' does not exist")
+
+    with open(filename, "r", encoding="utf-8") as f:
+        context_json: dict[str, str | list[dict[str, str]]] = json.load(f)
+
+    context_arr: list[dict[str, str]] = cast(
+        list[dict[str, str]], context_json["context"]
+    )
+    context: str = "".join(
+        f"{QUERY_SEPARATOR}User: {question_answer_pair['User']}{USER_AI_SEPARATOR}AI: {question_answer_pair['AI']}{QUERY_SEPARATOR}"
+        for question_answer_pair in context_arr
+    )
 
     return context
 
@@ -56,17 +91,15 @@ def save_context(context: str = "") -> None:
     if not is_valid_context:
         return
 
-    # Check if the conversation is over.
-    # If it is, save the content from temp_file to filename AND delete temp_file.
-    # If it isn't, save the context to temp_file
-
     # Create contexts directory
     contexts_dir: Path = Path(Path.cwd(), "contexts")
     contexts_dir.mkdir(parents=True, exist_ok=True)
 
     # Create file
     timestamp_now: str = datetime.now().strftime("%B %d %Y @ %H:%M:%S")
-    timestamp_filename: str = f"context_{timestamp_now}.json"
+    timestamp_filename: str = (
+        f"context_{timestamp_now.replace(' ', '').replace(':', '_')}.json"
+    )
     filename: Path = Path(contexts_dir, timestamp_filename)
 
     # Format context
@@ -92,6 +125,23 @@ def save_context(context: str = "") -> None:
         json.dump(formatted_context, f, indent=4)
 
 
+def delete_old_context(filename: str) -> None:
+    """
+    Delete old context files.
+    """
+    # Check if the file exists
+    is_valid_filename: bool = all([isinstance(filename, str), len(filename) > 0])
+    if not is_valid_filename:
+        raise FileExistsError(f"File '{filename}' does not exist")
+
+    contexts_dir: Path = Path(Path.cwd(), "contexts")
+    file_to_delete: Path = Path(contexts_dir, Path(filename).name)
+    for file in contexts_dir.glob("*.json"):
+        if file == file_to_delete:
+            file_to_delete.unlink()
+            break
+
+
 def setup_llm(model_name: str = "llama3") -> RunnableSerializable[dict, str]:
     """
     Setup the LLM.
@@ -109,6 +159,9 @@ def setup_llm(model_name: str = "llama3") -> RunnableSerializable[dict, str]:
 
     Answer:
     """
+    is_valid_model_name: bool = all([isinstance(model_name, str), len(model_name) > 0])
+    if not is_valid_model_name:
+        raise Exception(f"Invalid model_name '{model_name}'")
 
     model: OllamaLLM = OllamaLLM(model=model_name)
     prompt: ChatPromptTemplate = ChatPromptTemplate.from_template(TEMPLATE)
@@ -117,16 +170,19 @@ def setup_llm(model_name: str = "llama3") -> RunnableSerializable[dict, str]:
     return chain
 
 
-def chat() -> None:
+def chat(args: argparse.Namespace) -> None:
     """
     Start chatting with the bot!
     """
     # Setup the LLM
-    chain = setup_llm("llama3")
+    chain = setup_llm(model_name=args.model_name)
 
     # Handle the conversation
     CONTINUE_THE_CONVERSATION: bool = True
-    context: str = ""
+    use_context: bool = all(
+        [isinstance(args.context_filename, str), len(args.context_filename) > 0]
+    )
+    context: str = get_context(filename=args.context_filename, use_context=use_context)
     # context_filename: str = ""
     # temp_file: BufferedRandom = tempfile.NamedTemporaryFile(encoding="utf-8", delete=False)
 
@@ -137,10 +193,6 @@ def chat() -> None:
             CONTINUE_THE_CONVERSATION = False
             print("Bot: Goodbye!")
             break
-        # elif user_input.lower() in ("save", "s"):
-        #     print("Bot: Saving the context")
-        #     context_filename = save_context(temp_file=temp_file, conversation_over=not CONTINUE_THE_CONVERSATION)
-        #     continue
 
         # LLM Chatbot's response to the question
         response: str = chain.invoke(input={"context": context, "question": user_input})
@@ -156,14 +208,15 @@ def chat() -> None:
             speak(f.name)
 
     save_context(context=context)
-    # save_context(filename=context_filename, temp_file=temp_file, conversation_over=not CONTINUE_THE_CONVERSATION)
+    if use_context:
+        delete_old_context(filename=args.context_filename)
 
 
-# TODO: add CLI args in order to fetch a specific context (in order to continue conversation)
 # TODO: add test cases to check functions
 def main() -> None:
     if __name__ == "__main__":
-        chat()
+        args: argparse.Namespace = get_args()
+        chat(args=args)
 
 
 main()

@@ -91,7 +91,11 @@ test: venv
 # Clean up and remove cache files
 .PHONY: clean
 clean:
-	find . -type f -name "*.py[co]" -delete -o -type d -name "__pycache__" -delete
+	@ find . -type f -name "*.py[co]" -delete -o -type d -name "__pycache__" -delete
+	@ dirs=".mypy_cache .pytest_cache .ruff_cache"; \
+	for dir in $$dirs; do \
+		rm -rf "$$dir"; \
+	done \
 
 # Execute all steps
 .PHONY: all
