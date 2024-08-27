@@ -3,6 +3,7 @@
 # Variables
 DEV = 1
 VENV_NAME = .venv
+LINUX_REQUIREMENTS = requirements/apt_packages.txt
 REQUIREMENTS = requirements/common.txt
 COMMON_REQUIREMENTS = requirements/common.txt
 DEV_REQUIREMENTS = requirements/dev.txt
@@ -25,6 +26,12 @@ PYTHON_ENTRY_POINT = main.py
 ALL_PYTHON_FILES := $$(git ls-files "*.py")
 ALL_iPYTHON_FILES := $$(git ls-files "*.ipynb")
 
+# .env variables
+ifneq (,$(wildcard ./.env))
+    include .env
+    export
+endif
+
 # Get dependencies
 .PHONY: install
 install: $(REQUIREMENTS)
@@ -33,6 +40,7 @@ install: $(REQUIREMENTS)
 	$(PIP) install --upgrade pip      $(MUTE_OUTPUT) && \
 	$(PIP) install --upgrade wheel    $(MUTE_OUTPUT) && \
 	$(PIP) install -r $(REQUIREMENTS) $(MUTE_OUTPUT) && \
+	echo $(SUDO_PASSWORD) | sudo -S apt-get install $$(cat $(LINUX_REQUIREMENTS)) $(MUTE_OUTPUT) && \
 	echo "Installing dependencies... [FINISHED]"
 
 # Create/Activate env; install dependencies

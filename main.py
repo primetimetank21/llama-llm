@@ -2,6 +2,7 @@
 from pathlib import Path
 from datetime import datetime
 import tempfile
+import json
 
 # Typing Dependencies
 from typing import Final
@@ -17,6 +18,10 @@ from langchain_core.prompts import ChatPromptTemplate
 from gtts import gTTS  # type:ignore
 import os
 
+# Global Variables
+QUERY_SEPARATOR: Final[str] = "\n----------------QUERY SEPARATOR----------------\n"
+USER_AI_SEPARATOR: Final[str] = "\n----------------USER AI SEPARATOR----------------\n"
+
 
 def speak(filename: str) -> None:
     is_valid_filename: bool = all([isinstance(filename, str), len(filename) > 0])
@@ -27,7 +32,16 @@ def speak(filename: str) -> None:
     os.system(f"mpg123 -q {filename}")
 
 
+def get_context(filename: Path) -> str:
+    """
+    Get the context from a file.
 
+    `filename`: `str` -- The filename to get the context from.\n
+    """
+    filename.exists()
+    context: str = ""
+
+    return context
 
 
 def save_context(context: str = "") -> None:
@@ -50,15 +64,32 @@ def save_context(context: str = "") -> None:
     contexts_dir: Path = Path(Path.cwd(), "contexts")
     contexts_dir.mkdir(parents=True, exist_ok=True)
 
-    # Create filename
-    timestamp_now: str = datetime.now().strftime("%Y%m%d-%H%M%S")
-    timestamp_filename: str = f"context_{timestamp_now}.txt"
+    # Create file
+    timestamp_now: str = datetime.now().strftime("%B %d %Y @ %H:%M:%S")
+    timestamp_filename: str = f"context_{timestamp_now}.json"
     filename: Path = Path(contexts_dir, timestamp_filename)
+
+    # Format context
+    context_lines: list[str] = context.split(QUERY_SEPARATOR)
+    question_answer_pairs: list[dict[str, str]] = []
+
+    # Save context
+    for line in context_lines:
+        if line:
+            assert len(line.split(USER_AI_SEPARATOR)) % 2 == 0
+            user_line, ai_line = line.split(USER_AI_SEPARATOR)
+
+            question_answer_pair: dict[str, str] = {"User": user_line, "AI": ai_line}
+            question_answer_pairs.append(question_answer_pair)
+
+    formatted_context: dict[str, str | list[dict[str, str]]] = {
+        "started_on": timestamp_now,
+        "context": question_answer_pairs,
+    }
 
     # Save context
     with open(filename, "w", encoding="utf-8") as f:
-        f.write(f"Start of the context from {timestamp_now}:\n\n")
-        f.write(context.strip())
+        json.dump(formatted_context, f, indent=4)
 
 
 def setup_llm(model_name: str = "llama3") -> RunnableSerializable[dict, str]:
@@ -68,6 +99,7 @@ def setup_llm(model_name: str = "llama3") -> RunnableSerializable[dict, str]:
     `model_name`: `str` -- Name of the model to use. Default is `llama3`.\n
     """
 
+    # TODO: could also provide additional "personality" to the AI
     TEMPLATE: Final[str] = """
     Answer the question below.
 
@@ -113,7 +145,7 @@ def chat() -> None:
         # LLM Chatbot's response to the question
         response: str = chain.invoke(input={"context": context, "question": user_input})
         print(f"Bot: {response}")
-        context += f"\nUser: {user_input}\nAI: {response}\n"
+        context += f"{QUERY_SEPARATOR}User: {user_input}{USER_AI_SEPARATOR}AI: {response}{QUERY_SEPARATOR}"
 
         # TTS
         with tempfile.NamedTemporaryFile(
