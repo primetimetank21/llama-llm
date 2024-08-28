@@ -26,7 +26,7 @@ QUERY_SEPARATOR: Final[str] = "\n----------------QUERY SEPARATOR----------------
 USER_AI_SEPARATOR: Final[str] = "\n----------------USER AI SEPARATOR----------------\n"
 
 
-def get_args() -> argparse.Namespace:
+def get_args(args: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Chat with the bot!")
     parser.add_argument(
         "-m",
@@ -38,7 +38,7 @@ def get_args() -> argparse.Namespace:
     parser.add_argument(
         "-c", "--context_filename", type=str, default="", help="Context filepath to use"
     )
-    return parser.parse_args()
+    return parser.parse_args(args=args)
 
 
 def speak(filename: str) -> None:
@@ -111,6 +111,10 @@ def save_context(context: str = "") -> None:
         if line:
             assert len(line.split(USER_AI_SEPARATOR)) % 2 == 0
             user_line, ai_line = line.split(USER_AI_SEPARATOR)
+            user_line, ai_line = (
+                user_line.replace("User: ", "", 1),
+                ai_line.replace("AI: ", "", 1),
+            )
 
             question_answer_pair: dict[str, str] = {"User": user_line, "AI": ai_line}
             question_answer_pairs.append(question_answer_pair)
@@ -170,6 +174,26 @@ def setup_llm(model_name: str = "llama3") -> RunnableSerializable[dict, str]:
     return chain
 
 
+def print_previous_context(context: str = "") -> None:
+    """
+    Print the previous context.
+    """
+    # Exit if there is no context
+    is_valid_context: bool = all([isinstance(context, str), len(context) > 0])
+    if not is_valid_context:
+        return
+
+    # Format context
+    context_lines: list[str] = context.split(QUERY_SEPARATOR)
+
+    # Print previous context
+    for line in context_lines:
+        if line:
+            assert len(line.split(USER_AI_SEPARATOR)) % 2 == 0
+            user_line, ai_line = line.split(USER_AI_SEPARATOR)
+            print(f"{user_line}\n{ai_line}\n")
+
+
 def chat(args: argparse.Namespace) -> None:
     """
     Start chatting with the bot!
@@ -186,17 +210,20 @@ def chat(args: argparse.Namespace) -> None:
     # context_filename: str = ""
     # temp_file: BufferedRandom = tempfile.NamedTemporaryFile(encoding="utf-8", delete=False)
 
+    if context:
+        print_previous_context(context=context)
+
     while CONTINUE_THE_CONVERSATION:
         user_input: str = input("User: ")
 
         if user_input.lower().strip() in ("quit", "exit", "q", "bye"):
             CONTINUE_THE_CONVERSATION = False
-            print("Bot: Goodbye!")
+            print("AI: Goodbye!")
             break
 
         # LLM Chatbot's response to the question
         response: str = chain.invoke(input={"context": context, "question": user_input})
-        print(f"Bot: {response}")
+        print(f"AI: {response}\n")
         context += f"{QUERY_SEPARATOR}User: {user_input}{USER_AI_SEPARATOR}AI: {response}{QUERY_SEPARATOR}"
 
         # TTS
@@ -213,10 +240,7 @@ def chat(args: argparse.Namespace) -> None:
 
 
 # TODO: add test cases to check functions
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     if __name__ == "__main__":
-        args: argparse.Namespace = get_args()
+        args: argparse.Namespace = get_args(args=argv)
         chat(args=args)
-
-
-main()

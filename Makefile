@@ -92,6 +92,7 @@ test: venv
 .PHONY: clean
 clean:
 	@ find . -type f -name "*.py[co]" -delete -o -type d -name "__pycache__" -delete
+	@ rm .coverage
 	@ dirs=".mypy_cache .pytest_cache .ruff_cache"; \
 	for dir in $$dirs; do \
 		rm -rf "$$dir"; \
