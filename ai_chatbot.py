@@ -44,7 +44,7 @@ def get_args(args: list[str] | None = None) -> argparse.Namespace:
 def speak(filename: str) -> None:
     is_valid_filename: bool = all([isinstance(filename, str), len(filename) > 0])
     if not is_valid_filename:
-        raise Exception("Invalid filename")
+        raise TypeError("Invalid filename")
 
     # Play the file
     os.system(f"mpg123 -q {filename}")

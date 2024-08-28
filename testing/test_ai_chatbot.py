@@ -1,20 +1,41 @@
 """Pytests for main()"""
 
-from typing import cast
+from typing import cast, Any
 import argparse
 
 # import mock  # type:ignore
 import pytest
 from ai_chatbot import (
-    # entry_point,
     main,
     # chat,
     get_args,
-    # speak,
+    speak,
     # get_context,
     # save_context,
     # delete_old_context,
 )
+
+
+@pytest.mark.parametrize(
+    "filename, bad_filename",
+    [
+        ("example_filename1.mp3", 5),
+        ("example_filename2.mp3", ""),
+        ("example_filename3.mp3", None),
+        ("example_filename4.mp3", 5.0),
+    ],
+)
+def test_speak(filename: str, bad_filename: Any) -> None:
+    # Valid filename
+    valid_case: None = cast(None, speak(filename=filename))
+    assert valid_case is None
+
+    # Invalid filename
+    try:
+        speak(filename=bad_filename)
+        assert False
+    except TypeError:
+        assert True
 
 
 @pytest.mark.parametrize(
@@ -58,7 +79,7 @@ def test_main(
         [isinstance(context_filename, str), len(context_filename) > 0]
     )
 
-    return_val = cast(
+    return_val: None = cast(
         None,
         main(argv=[model_arg_flag, model_name, context_arg_flag, context_filename])
         if any(
