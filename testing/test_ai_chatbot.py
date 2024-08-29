@@ -10,10 +10,35 @@ from ai_chatbot import (
     # chat,
     get_args,
     speak,
-    # get_context,
+    get_context,
     # save_context,
     # delete_old_context,
 )
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        "",
+        " ",
+        "contexts/test_context.json",
+        "contexts/file_that_does_not_exist.json",
+        5,
+        False,
+        True,
+        5.0,
+        None,
+    ],
+)
+def test_get_context(filename: str) -> None:
+    try:
+        # Check for proper variable type, non-empty string, and if the file exists
+        context, use_context = get_context(filename=filename)
+        assert all([isinstance(context, str), isinstance(use_context, bool)])
+    except Exception:
+        # Check for improper variable type, empty string, and/or if the file doesn't exist
+        with pytest.raises((TypeError, FileExistsError)):
+            get_context(filename=filename)
 
 
 @pytest.mark.parametrize(
@@ -31,11 +56,8 @@ def test_speak(filename: str, bad_filename: Any) -> None:
     assert valid_case is None
 
     # Invalid filename
-    try:
+    with pytest.raises(TypeError):
         speak(filename=bad_filename)
-        assert False
-    except TypeError:
-        assert True
 
 
 @pytest.mark.parametrize(
@@ -90,7 +112,7 @@ def test_main(
                 is_valid_context_filename,
             ]
         )
-        else main(argv=[]),
+        else main(),
     )
 
     assert return_val is None

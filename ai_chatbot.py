@@ -50,33 +50,42 @@ def speak(filename: str) -> None:
     os.system(f"mpg123 -q {filename}")
 
 
-def get_context(filename: str, use_context: bool = False) -> str:
+def get_context(filename: str = "") -> tuple[str, bool]:
     """
     Get the context from a file.
 
     `filename`: `str` -- The filename to get the context from.\n
-    `use_context`: `bool` -- Whether to use the context. Default is `False`.\n
     """
+    # Check for proper variable type
+    if not isinstance(filename, str):
+        raise TypeError(f"'filename' must be a string (got {type(filename)} instead).")
+
+    # Check for non-empty string
+    use_context: bool = len(filename) > 0
     if not use_context:
-        return ""
+        return ("", use_context)
 
     # Check if the file exists
-    is_valid_filename: bool = all([isinstance(filename, str), len(filename) > 0])
+    is_valid_filename: bool = Path(filename).exists()
     if not is_valid_filename:
         raise FileExistsError(f"File '{filename}' does not exist")
 
+    # Read the file
     with open(filename, "r", encoding="utf-8") as f:
         context_json: dict[str, str | list[dict[str, str]]] = json.load(f)
 
+    # Extract the context
     context_arr: list[dict[str, str]] = cast(
         list[dict[str, str]], context_json["context"]
     )
+
+    # Format the context
     context: str = "".join(
         f"{QUERY_SEPARATOR}User: {question_answer_pair['User']}{USER_AI_SEPARATOR}AI: {question_answer_pair['AI']}{QUERY_SEPARATOR}"
         for question_answer_pair in context_arr
     )
 
-    return context
+    return (context, use_context)
 
 
 def save_context(context: str = "") -> None:
@@ -154,6 +163,7 @@ def setup_llm(model_name: str = "llama3") -> RunnableSerializable[dict, str]:
     """
 
     # TODO: could also provide additional "personality" to the AI
+    #       i.e., speaking with a southern accent
     TEMPLATE: Final[str] = """
     Answer the question below.
 
@@ -203,10 +213,10 @@ def chat(args: argparse.Namespace) -> None:
 
     # Handle the conversation
     CONTINUE_THE_CONVERSATION: bool = True
-    use_context: bool = all(
-        [isinstance(args.context_filename, str), len(args.context_filename) > 0]
-    )
-    context: str = get_context(filename=args.context_filename, use_context=use_context)
+    # use_context: bool = all(
+    #     [isinstance(args.context_filename, str), len(args.context_filename) > 0]
+    # )
+    context, use_context = get_context(filename=args.context_filename)
     # context_filename: str = ""
     # temp_file: BufferedRandom = tempfile.NamedTemporaryFile(encoding="utf-8", delete=False)
 
@@ -244,3 +254,6 @@ def main(argv: list[str] | None = None) -> None:
     if __name__ == "__main__":
         args: argparse.Namespace = get_args(args=argv)
         chat(args=args)
+
+
+main()
