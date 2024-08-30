@@ -42,9 +42,14 @@ def get_args(args: list[str] | None = None) -> argparse.Namespace:
 
 
 def speak(filename: str) -> None:
-    is_valid_filename: bool = all([isinstance(filename, str), len(filename) > 0])
+    # Check for proper variable type
+    if not isinstance(filename, str):
+        raise TypeError(f"'filename' must be a string (got {type(filename)} instead).")
+
+    # Check if the file exists
+    is_valid_filename: bool = Path(filename).exists()
     if not is_valid_filename:
-        raise TypeError("Invalid filename")
+        raise FileExistsError(f"File '{filename}' does not exist")
 
     # Play the file
     os.system(f"mpg123 -q {filename}")

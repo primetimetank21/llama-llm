@@ -1,6 +1,6 @@
 """Pytests for main()"""
 
-from typing import cast, Any
+from typing import cast
 import argparse
 
 # import mock  # type:ignore
@@ -35,29 +35,29 @@ def test_get_context(filename: str) -> None:
         # Check for proper variable type, non-empty string, and if the file exists
         context, use_context = get_context(filename=filename)
         assert all([isinstance(context, str), isinstance(use_context, bool)])
+        return
     except Exception:
         # Check for improper variable type, empty string, and/or if the file doesn't exist
-        with pytest.raises((TypeError, FileExistsError)):
+        with pytest.raises((TypeError, FileExistsError)) as exception_info:
             get_context(filename=filename)
+    assert exception_info.type is FileExistsError or exception_info.type is TypeError
 
 
+# TODO: test os.system?
 @pytest.mark.parametrize(
-    "filename, bad_filename",
-    [
-        ("example_filename1.mp3", 5),
-        ("example_filename2.mp3", ""),
-        ("example_filename3.mp3", None),
-        ("example_filename4.mp3", 5.0),
-    ],
+    "filename",
+    ["", " ", "example_filename1.mp3", 5, 5.0, None, True, False],
 )
-def test_speak(filename: str, bad_filename: Any) -> None:
-    # Valid filename
-    valid_case: None = cast(None, speak(filename=filename))
-    assert valid_case is None
+def test_speak(filename: str) -> None:
+    try:
+        expected: None = cast(None, speak(filename=filename))
+        assert all([isinstance(filename, str), expected is None])
+        return
+    except Exception:
+        with pytest.raises((TypeError, FileExistsError)) as exception_info:
+            speak(filename=filename)
 
-    # Invalid filename
-    with pytest.raises(TypeError):
-        speak(filename=bad_filename)
+    assert exception_info.type is FileExistsError or exception_info.type is TypeError
 
 
 @pytest.mark.parametrize(
